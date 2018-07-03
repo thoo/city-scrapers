@@ -9,8 +9,8 @@ import os
 from airtable import Airtable
 from random import randint
 
-AIRTABLE_BASE_KEY = os.environ.get('DOCUMENTERS_AGGREGATOR_AIRTABLE_BASE_KEY')
-AIRTABLE_GEOCODE_TABLE = os.environ.get('DOCUMENTERS_AGGREGATOR_AIRTABLE_GEOCODE_TABLE')
+AIRTABLE_BASE_KEY = os.environ.get('CITY_SCRAPERS_AIRTABLE_BASE_KEY')
+AIRTABLE_GEOCODE_TABLE = os.environ.get('CITY_SCRAPERS_AIRTABLE_GEOCODE_TABLE')
 TAMU_API_KEY = os.environ.get('CITY_SCRAPERS_TAMU_API_KEY')
 
 
@@ -80,7 +80,7 @@ class GeocoderPipeline(object):
             print(i)
             label = loc_types[i]
             loc = default_locs[i]
-            # usaddress will return "Southside, Chicago" as city 
+            # usaddress will return "Southside, Chicago" as city
             #  or "IL, USA" as state
             print(label + ' ' + loc)
             if (label not in query) or re.search(',', query[label]):
