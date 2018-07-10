@@ -27,31 +27,62 @@ class GeocoderPipeline(object):
         coordinates.
         """
         if item['location']['coordinates'] is None:
-            query = self._parse_address(item.get('location', {}), 'Chicago', 'IL')
-            print(query)
-            if not query:
+            querydict = self._parse_address(item.get('location', {}), 'Chicago', 'IL')
+            print(querydict)
+            if not querydict:
                 spider.logger.debug('GEOCODER PIPELINE: Empty query. Not geocoding {0}'.format(item['id']))
                 return item
-            item['location']['coordinates'] = self._geocode_address(query, spider)
-            item['tamu_query'] = query
+            item['location']['coordinates'] = self._geocode_address(querydict, item, spider)
+            item['usaddress_dict'] = querydict
             return item
 
-    def _geocode_address(self, query, spider):
-        address = ' '.join(v for (k, v) in query.items() if k not in ['PlaceName', 'StateName', 'ZipCode'])
-        print('Query '+address+' '+query['PlaceName']+' '+query['StateName']+' '+query['ZipCode'])
-        g = geocoder.tamu(address,
-                          city=query['PlaceName'],
-                          state=query['StateName'],
-                          zipcode=query['ZipCode'],
-                          session=self.session, key=TAMU_API_KEY)
-        print(g)
-        print(g.ok)
-        print(g.latlng)
-        if not g.latlng:
-            return {'latitude': 'None found', 'longitude': 'None found'}
-            #spider.logger.exception(("GEOCODER PIPELINE: Couldn't geocode using mapzen or airtable cache. " "Query: {0}. Item id: {1}").format(query, item['id']))
-        coords = g.latlng
-        return {'latitude': str(coords[0]), 'longitude': str(coords[1])}
+    def _geocode_address(self, querydict, item, spider):
+        '''
+        Joins the usaddress parsed components and queries from Tamu 
+        Returns a geocoded item with geocode query and results
+        '''
+        try:
+            address = ' '.join(v for (k, v) in querydict.items() if k not in ['PlaceName', 'StateName', 'ZipCode'])
+            query = address+' '+querydict['PlaceName']+', '+querydict['StateName']+' '+querydict['ZipCode']
+            print('Query: ' + query)
+            geocode = geocoder.tamu(address,
+                              city=querydict['PlaceName'],
+                              state=querydict['StateName'],
+                              zipcode=querydict['ZipCode'],
+                              session=self.session, key=TAMU_API_KEY)
+            print(geocode)
+            print(geocode.ok)
+            print(geocode.latlng)
+        ## start paste
+        except ValueError:
+            spider.logger.debug(('GEOCODER PIPELINE: Could not geocode, skipping. '
+                                 'Query: {0}. Item id: {1}').format(query, item['id']))
+        except Exception as e:
+            spider.logger.info(('GEOCODER PIPELINE: Unknown error when geocoding, skipping. '
+                                'Query: {0}. Item id: {1}. Message: {2}').format(query, item['id'], str(e)))
+        else:
+            new_data = {
+                'location': {
+                    'coordinates': {
+                        'longitude': str(geocode.latlng[1]),
+                        'latitude': str(geocode.latlng[0]),
+                    },
+                    'name': item.get('location', {'name': ''}).get('name', ''),
+                    'address': item.get('location', {'address': ''}).get('address', ''),
+                    'url': item.get('location', {'url': ''}).get('url', '')
+                },
+                'geocode': '',
+                'community_area': '',
+            }
+            geocoded_item = item.copy()
+            geocoded_item.update(new_data)
+            return geocoded_item
+        return {'location': {
+                'coordinates': {
+                 'latitude': 'None found',
+                 'longitude': 'None found',
+                },
+                'address': ''}
 
     def _parse_address(self, location_dict, default_city='Chicago', default_state='IL'):
         """
@@ -63,15 +94,15 @@ class GeocoderPipeline(object):
             return {}
 
         # replace city hall
-        query = re.sub('city hall((?!.*chicago, il).)*$',
-                       'City Hall 121 N LaSalle St., Chicago, IL',
-                       address, flags=re.I)
+        address = re.sub('city hall((?!.*chicago, il).)*$',
+                         'City Hall 121 N LaSalle St., Chicago, IL',
+                         address, flags=re.I)
 
         try:
-            query = usaddress.tag(query)[0]
+            querydict = usaddress.tag(address)[0]
         except usaddress.RepeatedLabelError as ex:
             # @TODO: include multiple errors
-            query = self.bad_address_tag(ex.parsed_string)
+            querydict = self.bad_address_tag(ex.parsed_string)
 
         loc_types = ['PlaceName', 'StateName', 'ZipCode']
         default_locs = [default_city, default_state, '']
@@ -83,10 +114,10 @@ class GeocoderPipeline(object):
             # usaddress will return "Southside, Chicago" as city 
             #  or "IL, USA" as state
             print(label + ' ' + loc)
-            if (label not in query) or re.search(',', query[label]):
-                query[label] = loc
+            if (label not in querydict) or re.search(',', querydict[label]):
+                querydict[label] = loc
 
-        return query
+        return querydict
 
     def bad_address_tag(parsed_string):
         """
