@@ -34,7 +34,7 @@ env.filters["quote_list"] = quote_list
 
 
 @task()
-def genspider(ctx, name, long_name, start_urls):
+def genspider(ctx, name, agency_id, start_urls):
     """
     Make a new HTML scraping spider.
 
@@ -55,7 +55,7 @@ def genspider(ctx, name, long_name, start_urls):
     """
     start_urls = start_urls.split(',')
     domains = _get_domains(start_urls)
-    _gen_spider(name, long_name, domains, start_urls)
+    _gen_spider(name, agency_id, domains, start_urls)
     _gen_tests(name)
     _gen_html(name, start_urls)
 
@@ -73,11 +73,11 @@ def _make_classname(name):
     return '{0}Spider'.format(name.capitalize())
 
 
-def _gen_spider(name, long_name, domains, start_urls):
+def _gen_spider(name, agency_id, domains, start_urls):
     filename = '{0}/{1}.py'.format(SPIDERS_DIR, name)
 
     with open(filename, 'w') as f:
-        content = _render_content('spider.tmpl', name=name, long_name=long_name, domains=domains, start_urls=start_urls)
+        content = _render_content('spider.tmpl', name=name, agency_id=agency_id, domains=domains, start_urls=start_urls)
         f.write(content)
 
     print('Created {0}'.format(filename))
@@ -141,11 +141,11 @@ def _gen_html(name, start_urls, session=requests.Session()):
     return files
 
 
-def _render_content(template, name, long_name=None, domains=None, start_urls=None):
+def _render_content(template, name, agency_id=None, domains=None, start_urls=None):
     jinja_template = env.get_template(template)
     classname = _make_classname(name)
     return jinja_template.render(
-        name=name, long_name=long_name, domains=domains, classname=classname, start_urls=start_urls)
+        name=name, agency_id=agency_id, domains=domains, classname=classname, start_urls=start_urls)
 
 
 def _get_domains(start_urls):
@@ -165,21 +165,24 @@ def validate_spider(ctx, spider_file):
     conform to the schema.
     """
     spider = os.path.basename(spider_file).split('.')[0]
+    # Open a JSON of scraped items
     with open(spider_file, 'r') as f:
         content = f.read()
-
         if len(content) == 0:
             print("{0} was empty.".format(spider_file))
-            return
+            return None
         try:
-
             scraped_items = json.loads(content)
         except json.decoder.JSONDecodeError:
             message = "Could not decode JSON. Here is the beginning and end of the file: {0}\n...\n{1}"
             print(message).format(content[:50], content[-50:])
             raise Exception("Could not decode JSON")
 
+    # Drop empty items
     nonempty_items = [item for item in scraped_items if item]
+
+    # Reformat items from a list of dicts into a dict of lists
+    # Keep only the validation keys (that start with 'val_')
     validated_items = defaultdict(list)
     for item in nonempty_items:
         for k, v in item.items():
