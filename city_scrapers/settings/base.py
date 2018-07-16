@@ -35,11 +35,9 @@ ITEM_PIPELINES = {
     'city_scrapers.pipelines.MapboxPipeline': 300,
     'city_scrapers.pipelines.CityScrapersItemPipeline': 300,
     'city_scrapers.pipelines.JsonWriterPipeline': 400,
-    'city_scrapers.pipelines.CsvPipeline': 400
+    'city_scrapers.pipelines.CsvPipeline': 400,
     'city_scrapers.pipelines.CityScrapersItemPipeline': 200,
     # 'city_scrapers.pipelines.CsvPipeline': 400,
-=======
->>>>>>> d9ed4f03297d92a1ee70807a8992b9b68be43f3f
 }
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)

@@ -30,7 +30,7 @@ class GeocoderPipeline(object):
             querydict = self._parse_address(item.get('location', {}), 'Chicago', 'IL')
             print(querydict)
             if not querydict:
-                spider.logger.debug('GEOCODER PIPELINE: Empty query. Not geocoding {0}'.format(item['id']))
+                #spider.logger.debug('GEOCODER PIPELINE: Empty query. Not geocoding {0}'.format(item['id']))
                 return item
             item['location']['coordinates'] = self._geocode_address(querydict, item, spider)
             item['usaddress_dict'] = querydict
@@ -55,11 +55,13 @@ class GeocoderPipeline(object):
             print(geocode.latlng)
         ## start paste
         except ValueError:
-            spider.logger.debug(('GEOCODER PIPELINE: Could not geocode, skipping. '
-                                 'Query: {0}. Item id: {1}').format(query, item['id']))
+            print("Could not Geocode")
+            #spider.logger.debug(('GEOCODER PIPELINE: Could not geocode, skipping. '
+            #                     'Query: {0}. Item id: {1}').format(query, item['id']))
         except Exception as e:
-            spider.logger.info(('GEOCODER PIPELINE: Unknown error when geocoding, skipping. '
-                                'Query: {0}. Item id: {1}. Message: {2}').format(query, item['id'], str(e)))
+            print("Unknown error, skip")
+            #spider.logger.info(('GEOCODER PIPELINE: Unknown error when geocoding, skipping. '
+            #                    'Query: {0}. Item id: {1}. Message: {2}').format(query, item['id'], str(e)))
         else:
             new_data = {
                 'location': {
@@ -82,7 +84,7 @@ class GeocoderPipeline(object):
                  'latitude': 'None found',
                  'longitude': 'None found',
                 },
-                'address': ''}
+                'address': ''}}
 
     def _parse_address(self, location_dict, default_city='Chicago', default_state='IL'):
         """
@@ -181,7 +183,7 @@ class GeocoderPipeline(object):
         """
         Write to geocode_database.
         """
-        spider.logger.debug('GEOCODER PIPELINE: Caching {0}'.format(item['mapzen_query']))
+        #spider.logger.debug('GEOCODER PIPELINE: Caching {0}'.format(item['mapzen_query']))
         item['geocode_date_updated'] = datetime.datetime.now().isoformat()
         airtable_item = self.geocode_database.match('mapzen_query', item['mapzen_query'])
         if airtable_item:

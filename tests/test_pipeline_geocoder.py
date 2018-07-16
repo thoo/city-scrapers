@@ -99,5 +99,5 @@ testitem = {
         }
     }
 }
-from city_scrapers.utils import get_key
-get_key(testitem, 'location.coordinates.latitude')
+#from city_scrapers.utils import get_key
+#get_key(testitem, 'location.coordinates.latitude')
